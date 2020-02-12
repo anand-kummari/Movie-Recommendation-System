@@ -18,7 +18,7 @@ mpl.rc('patch', edgecolor = 'dimgray', linewidth=1)
 # from IPython.core.interactiveshell import InteractiveShell
 # InteractiveShell.ast_node_interactivity = "last_expr"
 # pd.options.display.max_columns = 50
-%matplotlib inline
+%mpl inline
 warnings.filterwarnings('ignore')
 PS = nltk.stem.PorterStemmer()
 
@@ -132,3 +132,31 @@ def count_word(df, ref_col, liste):
 #%%
 keyword_occurences, count = count_word(df_initial, 'keywords', keyword_set)
 #%%
+# code snippet to show keyword occurences in wordcloud representation
+def random_color_func(word=None, font_size=None, position=None,
+                      orientation=None, font_path=None, random_state=None):
+    h = int(360.0 * tone / 255.0)
+    s = int(100.0 * 255.0 / 255.0)
+    l = int(100.0 * float(random_state.randint(70, 120)) / 255.0)
+    return "hsl({}, {}%, {}%)".format(h, s, l)
+
+fig = plt.figure(1, figsize=(18,13))
+ax1 = fig.add_subplot(2,1,1)
+
+# define the dictionary used to produce the wordcloud
+words = dict()
+trunc_occurences = keyword_occurences[0:50]
+for s in trunc_occurences:
+    words[s[0]] = s[1]
+
+# define the color of the words
+tone = 55.0
+
+wordcloud = WordCloud(width=1000,height=300, background_color='black', 
+                      max_words=1628,relative_scaling=1,
+                      color_func = random_color_func,
+                      normalize_plurals=False)
+wordcloud.generate_from_frequencies(words)
+ax1.imshow(wordcloud, interpolation="bilinear")
+ax1.axis('off')
+# fig.savefig('wordcloud.png')
