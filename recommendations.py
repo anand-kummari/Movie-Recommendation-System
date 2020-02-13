@@ -18,7 +18,7 @@ mpl.rc('patch', edgecolor = 'dimgray', linewidth=1)
 # from IPython.core.interactiveshell import InteractiveShell
 # InteractiveShell.ast_node_interactivity = "last_expr"
 # pd.options.display.max_columns = 50
-%mpl inline
+%matplotlib inline
 warnings.filterwarnings('ignore')
 PS = nltk.stem.PorterStemmer()
 
@@ -108,11 +108,6 @@ for item in df_initial['keywords'].str.split('|').values:
 # remove null chain entry
 keyword_set.remove('')
 #%%
-print(type(keyword_set))
-for s in keyword_set:
-    print(s)
-    break
-#%%
 def count_word(df, ref_col, liste):
     keyword_count = dict()
     for s in liste: keyword_count[s] = 0
@@ -152,7 +147,7 @@ for s in trunc_occurences:
 # define the color of the words
 tone = 55.0
 
-wordcloud = WordCloud(width=1000,height=300, background_color='black', 
+wordcloud = WordCloud(width=800,height=500, background_color='black', 
                       max_words=1628,relative_scaling=1,
                       color_func = random_color_func,
                       normalize_plurals=False)
@@ -160,3 +155,41 @@ wordcloud.generate_from_frequencies(words)
 ax1.imshow(wordcloud, interpolation="bilinear")
 ax1.axis('off')
 # fig.savefig('wordcloud.png')
+#%%
+# get filling factor and missing count in dataframe
+missing_df = df_initial.isnull().sum(axis=0).reset_index()
+missing_df.columns = ['column_name', 'missing_count']
+missing_df['missing_count']
+missing_df['filling_factor'] = (df_initial.shape[0]-missing_df['missing_count'])/df_initial.shape[0] * 100
+missing_df.sort_values('filling_factor').reset_index(drop = True)
+
+#%%
+df_initial['decade'] = df_initial['year'].apply(lambda x:((x-1900)//10)*10)
+# function that extract statistical parameters from a groupby objet:
+def get_stats(gr):
+    return {'min':gr.min(),'max':gr.max(),'count': gr.count(),'mean':gr.mean()}
+# Creation of a dataframe with statitical infos on each decade:
+test = df_initial['year'].groupby(df_initial['decade']).apply(get_stats).unstack()
+#%%
+sns.set_context("poster", font_scale=0.85)
+# funtion used to set the labels
+def label(s):
+    val = (1900 + s, s)[s < 100]
+    chain = '' if s < 50 else "{}'s".format(int(val))
+    return chain
+
+plt.rc('font', weight='bold')
+f, ax = plt.subplots(figsize=(11, 6))
+labels = [label(s) for s in  test.index]
+sizes  = test['count'].values
+explode = [0.2 if sizes[i] < 100 else 0.01 for i in range(11)]
+ax.pie(sizes, explode = explode, labels=labels,
+       autopct = lambda x:'{:1.0f}%'.format(x) if x > 1 else '',
+       shadow=False, startangle=0)
+ax.axis('equal')
+ax.set_title('% of films per decade',
+             bbox={'facecolor':'k', 'pad':5},color='w', fontsize=16);
+df_initial.drop('decade', axis=1, inplace = True)
+f.savefig('pieChart.png')
+
+# %%
