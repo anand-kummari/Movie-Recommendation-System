@@ -190,6 +190,72 @@ ax.axis('equal')
 ax.set_title('% of films per decade',
              bbox={'facecolor':'k', 'pad':5},color='w', fontsize=16);
 df_initial.drop('decade', axis=1, inplace = True)
-f.savefig('pieChart.png')
+# f.savefig('pieChart.png')
 
-# %%
+#%%
+df_duplicate_cleaned = df_initial
+#%%
+# Grouping by roots
+# Collect the keywords
+def keywords_inventory(dataframe, coloumn = 'keywords'):
+    PS = nltk.stem.PorterStemmer()
+    keywords_roots  = dict()  # collect the words / root
+    keywords_select = dict()  # association: root <-> keyword
+    category_keys = []
+    icount = 0
+    for s in dataframe[coloumn]:
+        if pd.isnull(s): continue
+        for t in s.split('|'):
+            t = t.lower() ; racine = PS.stem(t)
+            if racine in keywords_roots:                
+                keywords_roots[racine].add(t)
+            else:
+                keywords_roots[racine] = {t}
+    
+    for s in keywords_roots.keys():
+        if len(keywords_roots[s]) > 1:  
+            min_length = 1000
+            for k in keywords_roots[s]:
+                if len(k) < min_length:
+                    clef = k ; min_length = len(k)            
+            category_keys.append(clef)
+            keywords_select[s] = clef
+        else:
+            category_keys.append(list(keywords_roots[s])[0])
+            keywords_select[s] = list(keywords_roots[s])[0]
+                   
+    print("Nb of keywords in variable '{}': {}".format(coloumn,len(category_keys)))
+    return category_keys, keywords_roots, keywords_select
+
+keywords, keywords_roots, keywords_select = keywords_inventory(df_duplicate_cleaned,
+                                                               coloumn = 'keywords')
+
+#%%
+# Replacement of the keywords by the main form
+def replacement_df_keywords(df, dico_remplacement, roots = False):
+    df_new = df.copy(deep = True)
+    for index, row in df_new.iterrows():
+        chaine = row['keywords']
+        if pd.isnull(chaine): continue
+        nouvelle_liste = []
+        for s in chaine.split('|'): 
+            clef = PS.stem(s) if roots else s
+            if clef in dico_remplacement.keys():
+                nouvelle_liste.append(dico_remplacement[clef])
+            else:
+                nouvelle_liste.append(s)       
+        df_new.at[index, 'keywords'] = '|'.join(nouvelle_liste) 
+        # print(df_new['keywords'].iloc[index])#,'keywords'))
+        # print(nouvelle_liste)
+        # break
+    return df_new
+
+# Replacement of the keywords by the main keyword
+df_keywords_cleaned = replacement_df_keywords(df_duplicate_cleaned, keywords_select,
+                                               roots = True)
+
+#%%
+# Count of the keywords occurences
+# keywords.remove('')
+# keyword_occurences, keywords_count = count_word(df_keywords_cleaned,'keywords',keywords)
+# keyword_occurences[:5]
