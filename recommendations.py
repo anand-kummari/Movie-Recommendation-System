@@ -7,7 +7,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math, nltk, warnings
-from nltk.corpus import wordnet
+# from nltk.corpus import wordnet
+nltk.download('wordnet')
 from sklearn import linear_model
 from sklearn.neighbors import NearestNeighbors
 from fuzzywuzzy import fuzz
@@ -255,7 +256,62 @@ df_keywords_cleaned = replacement_df_keywords(df_duplicate_cleaned, keywords_sel
                                                roots = True)
 
 #%%
-# Count of the keywords occurences
-# keywords.remove('')
-# keyword_occurences, keywords_count = count_word(df_keywords_cleaned,'keywords',keywords)
-# keyword_occurences[:5]
+# get the synomyms of the word 'word'
+def get_synonymes(word):
+    lemma = set()
+    for ss in wordnet.synsets(word):
+        for w in ss.lemma_names():
+            # just get the 'nouns':
+            index = ss.name().find('.')+1
+            if ss.name()[index] == 'n': lemma.add(w.lower().replace('_',' '))
+    return lemma  
+
+def test_keyword(mot, key_count, threshold):
+    return (False , True)[key_count.get(mot, 0) >= threshold]
+
+#%%
+keyword_occurences.sort(key = lambda x:x[1], reverse = False)
+key_count = dict()
+for s in keyword_occurences:
+    key_count[s[0]] = s[1]
+
+# Creation of a dictionary to replace keywords by higher frequency keywords
+remplacement_mot = dict()
+icount = 0
+for index, [mot, nb_apparitions] in enumerate(keyword_occurences):
+    if nb_apparitions > 5: continue  # only the keywords that appear less than 5 times
+    lemma = get_synonymes(mot)
+    if len(lemma) == 0: continue     # case of the plurals
+    #_________________________________________________________________
+    liste_mots = [(s, key_count[s]) for s in lemma 
+                  if test_keyword(s, key_count, key_count[mot])]
+    liste_mots.sort(key = lambda x:(x[1],x[0]), reverse = True)    
+    if len(liste_mots) <= 1: continue       # no replacement
+    if mot == liste_mots[0][0]: continue    # replacement by himself
+    icount += 1
+    if  icount < 8:
+        print('{:<12} -> {:<12} (init: {})'.format(mot, liste_mots[0][0], liste_mots))    
+    remplacement_mot[mot] = liste_mots[0][0]
+
+print(90*'_'+'\n'+'The replacement concerns {}% of the keywords.'
+      .format(round(len(remplacement_mot)/len(keywords)*100,2)))
+
+#%%
+# 2 successive replacements
+print('Keywords that appear both in keys and values:'.upper()+'\n'+45*'-')
+icount = 0
+for s in remplacement_mot.values():
+    if s in remplacement_mot.keys():
+        icount += 1
+        if icount < 10: print('{:<20} -> {:<20}'.format(s, remplacement_mot[s]))
+
+for key, value in remplacement_mot.items():
+    if value in remplacement_mot.keys():
+        remplacement_mot[key] = remplacement_mot[value] 
+
+#%%
+# replacement of keyword varieties by the main keyword
+df_keywords_synonyms = \
+            remplacement_df_keywords(df_keywords_cleaned, remplacement_mot, roots = False)   
+keywords, keywords_roots, keywords_select = \
+            keywords_inventory(df_keywords_synonyms, coloumn = 'keywords')
