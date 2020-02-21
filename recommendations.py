@@ -18,7 +18,8 @@ plt.style.use('fivethirtyeight')
 mpl.rc('patch', edgecolor = 'dimgray', linewidth=1)
 # from IPython.core.interactiveshell import InteractiveShell
 # InteractiveShell.ast_node_interactivity = "last_expr"
-# pd.options.display.max_columns = 50
+pd.set_option('display.max_columns', None)
+
 %matplotlib inline
 warnings.filterwarnings('ignore')
 PS = nltk.stem.PorterStemmer()
@@ -423,4 +424,56 @@ plt.text(N_thresh, 30, 'filling factor \n = {}%'.format(round(y_axis[N_thresh],1
 
 plt.xticks(x_axis, x_label,family='fantasy', fontsize = 14 )
 plt.ylabel('Filling factor (%)', family='fantasy', fontsize = 16)
-plt.bar(x_axis, y_axis);
+plt.bar(x_axis, y_axis)
+# plt.savefig('filling_factor_bar.jpg')
+
+# %%
+df_filling = df_var_cleaned.copy(deep=True)
+missing_year_info = df_filling[df_filling['year'].isnull()][[
+            'director','actor_1', 'actor_2', 'actor_3']]
+missing_year_info[:10]
+
+# %%
+def fill_year(df):
+    col = ['director', 'actor_1', 'actor_2', 'actor_3']
+    usual_year = [0 for _ in range(4)]
+    var        = [0 for _ in range(4)]
+    # get the mean years of activity for the actors and director
+    for i in range(4):
+        usual_year[i] = df.groupby(col[i])['year'].mean()
+    # create a dictionnary collectinf this info
+    actor_year = dict()
+    for i in range(4):
+        for s in usual_year[i].index:
+            if s in actor_year.keys():
+                if pd.notnull(usual_year[i][s]) and pd.notnull(actor_year[s]):
+                    actor_year[s] = (actor_year[s] + usual_year[i][s])/2
+                elif pd.isnull(actor_year[s]):
+                    actor_year[s] = usual_year[i][s]
+            else:
+                actor_year[s] = usual_year[i][s]
+        
+    # identification of missing title years
+    missing_year_info = df[df['year'].isnull()]
+    # filling of missing values
+    icount_replaced = 0
+    for index, row in missing_year_info.iterrows():
+        value = [ np.NaN for _ in range(4)]
+        icount = 0 ; sum_year = 0
+        for i in range(4):            
+            var[i] = df.loc[index][col[i]]
+            if pd.notnull(var[i]): value[i] = actor_year[var[i]]
+            if pd.notnull(value[i]): icount += 1 ; sum_year += actor_year[var[i]]
+        if icount != 0: sum_year = sum_year / icount 
+
+        if int(sum_year) > 0:
+            icount_replaced += 1
+            df.set_value(index, 'title', int(sum_year))
+            if icount_replaced < 10: 
+                print("{:<45} -> {:<20}".format(df.loc[index]['movie_title'],int(sum_year)))
+    return
+
+# %%
+fill_year(df_filling)
+
+# %%
