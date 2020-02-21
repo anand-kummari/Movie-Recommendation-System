@@ -7,8 +7,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math, nltk, warnings
-# from nltk.corpus import wordnet
 nltk.download('wordnet')
+from nltk.corpus import wordnet
 from sklearn import linear_model
 from sklearn.neighbors import NearestNeighbors
 from fuzzywuzzy import fuzz
@@ -312,6 +312,65 @@ for key, value in remplacement_mot.items():
 #%%
 # replacement of keyword varieties by the main keyword
 df_keywords_synonyms = \
-            remplacement_df_keywords(df_keywords_cleaned, remplacement_mot, roots = False)   
+            replacement_df_keywords(df_keywords_cleaned, remplacement_mot, roots = False)   
 keywords, keywords_roots, keywords_select = \
             keywords_inventory(df_keywords_synonyms, coloumn = 'keywords')
+
+# %%
+# deletion of keywords with low frequencies
+def replacement_df_low_frequency_keywords(df, keyword_occurences):
+    df_new = df.copy(deep = True)
+    key_count = dict()
+    for s in keyword_occurences: 
+        key_count[s[0]] = s[1]    
+    for index, row in df_new.iterrows():
+        chaine = row['keywords']
+        if pd.isnull(chaine): continue
+        nouvelle_liste = []
+        for s in chaine.split('|'): 
+            if key_count.get(s, 4) > 3: nouvelle_liste.append(s)
+        df_new.at[index, 'keywords'] = '|'.join(nouvelle_liste)
+    return df_new
+
+# %%
+# Creation of a dataframe where keywords of low frequencies are suppressed
+df_keywords_occurence = \
+    replacement_df_low_frequency_keywords(df_keywords_synonyms, new_keyword_occurences)
+keywords, keywords_roots, keywords_select = \
+    keywords_inventory(df_keywords_occurence, coloumn = 'keywords')
+
+# %%
+# Graph of keyword occurences
+font = {'family' : 'fantasy', 'weight' : 'normal', 'size'   : 15}
+mpl.rc('font', **font)
+
+keyword_occurences.sort(key = lambda x:x[1], reverse = True)
+
+y_axis = [i[1] for i in keyword_occurences]
+x_axis = [k for k,i in enumerate(keyword_occurences)]
+
+new_y_axis = [i[1] for i in new_keyword_occurences]
+new_x_axis = [k for k,i in enumerate(new_keyword_occurences)]
+
+f, ax = plt.subplots(figsize=(9, 5))
+ax.plot(x_axis, y_axis, 'r-', label='before cleaning')
+ax.plot(new_x_axis, new_y_axis, 'b-', label='after cleaning')
+
+# Now add the legend with some customizations.
+legend = ax.legend(loc='upper right', shadow=True)
+frame = legend.get_frame()
+frame.set_facecolor('0.90')
+for label in legend.get_texts():
+    label.set_fontsize('medium')
+            
+plt.ylim((0,25))
+plt.axhline(y=3.5, linewidth=2, color = 'k')
+plt.xlabel("keywords index", family='fantasy', fontsize = 15)
+plt.ylabel("Nb. of occurences", family='fantasy', fontsize = 15)
+#plt.suptitle("Nombre d'occurences des mots clés", fontsize = 18, family='fantasy')
+plt.text(3500, 4.5, 'threshold for keyword delation', fontsize = 13)
+plt.savefig('keyword_occcurences.jpg')
+# plt.show()
+
+# %%
+# Correlations
