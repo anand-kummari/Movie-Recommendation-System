@@ -374,3 +374,17 @@ plt.savefig('keyword_occcurences.jpg')
 
 # %%
 # Correlations
+f, ax = plt.subplots(figsize=(12, 9))
+# calculations of correlations
+corrmat = df_keywords_occurence.dropna(how='any').corr()
+
+k = 17 # number of variables for heatmap
+cols = corrmat.nlargest(k, 'num_voted_users')['num_voted_users'].index
+cm = np.corrcoef(df_keywords_occurence[cols].dropna(how='any').values.T)
+sns.set(font_scale=1.25)
+hm = sns.heatmap(cm, cbar=True, annot=True, square=True,
+                 fmt='.2f', annot_kws={'size': 10}, linewidth = 0.1, cmap = 'coolwarm',
+                 yticklabels=cols.values, xticklabels=cols.values)
+f.text(0.5, 0.93, "Correlation coefficients", ha='center', fontsize = 18, family='fantasy')
+plt.savefig('correlation_matrix.jpg')
+plt.show()
