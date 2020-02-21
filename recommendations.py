@@ -369,8 +369,8 @@ plt.xlabel("keywords index", family='fantasy', fontsize = 15)
 plt.ylabel("Nb. of occurences", family='fantasy', fontsize = 15)
 #plt.suptitle("Nombre d'occurences des mots clés", fontsize = 18, family='fantasy')
 plt.text(3500, 4.5, 'threshold for keyword delation', fontsize = 13)
-plt.savefig('keyword_occcurences.jpg')
-# plt.show()
+# plt.savefig('keyword_occcurences.jpg')
+plt.show()
 
 # %%
 # Correlations
@@ -386,5 +386,41 @@ hm = sns.heatmap(cm, cbar=True, annot=True, square=True,
                  fmt='.2f', annot_kws={'size': 10}, linewidth = 0.1, cmap = 'coolwarm',
                  yticklabels=cols.values, xticklabels=cols.values)
 f.text(0.5, 0.93, "Correlation coefficients", ha='center', fontsize = 18, family='fantasy')
-plt.savefig('correlation_matrix.jpg')
+# plt.savefig('correlation_matrix.jpg')
 plt.show()
+
+#%%
+df_var_cleaned = df_keywords_occurence.copy(deep = True)
+
+missing_df = df_var_cleaned.isnull().sum(axis=0).reset_index()
+missing_df.columns = ['column_name', 'missing_count']
+missing_df['filling_factor'] = (df_var_cleaned.shape[0] 
+                                - missing_df['missing_count']) / df_var_cleaned.shape[0] * 100
+missing_df = missing_df.sort_values('filling_factor').reset_index(drop = True)
+missing_df
+
+# %%
+y_axis = missing_df['filling_factor'] 
+x_label = missing_df['column_name']
+x_axis = missing_df.index
+
+fig = plt.figure(figsize=(11, 4))
+plt.xticks(rotation=80, fontsize = 14)
+plt.yticks(fontsize = 13)
+
+N_thresh = 5
+plt.axvline(x=N_thresh-0.5, linewidth=2, color = 'r')
+plt.text(N_thresh-4.8, 30, 'filling factor \n < {}%'.format(round(y_axis[N_thresh],1)),
+         fontsize = 15, family = 'fantasy', bbox=dict(boxstyle="round",
+                   ec=(1.0, 0.5, 0.5),
+                   fc=(0.8, 0.5, 0.5)))
+N_thresh = 17
+plt.axvline(x=N_thresh-0.5, linewidth=2, color = 'g')
+plt.text(N_thresh, 30, 'filling factor \n = {}%'.format(round(y_axis[N_thresh],1)),
+         fontsize = 15, family = 'fantasy', bbox=dict(boxstyle="round",
+                   ec=(1., 0.5, 0.5),
+                   fc=(0.5, 0.8, 0.5)))
+
+plt.xticks(x_axis, x_label,family='fantasy', fontsize = 14 )
+plt.ylabel('Filling factor (%)', family='fantasy', fontsize = 16)
+plt.bar(x_axis, y_axis);
