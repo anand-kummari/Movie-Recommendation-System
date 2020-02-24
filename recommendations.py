@@ -317,6 +317,12 @@ df_keywords_synonyms = \
 keywords, keywords_roots, keywords_select = \
             keywords_inventory(df_keywords_synonyms, coloumn = 'keywords')
 
+#%%
+# New count of keyword occurences
+keywords.remove('')
+new_keyword_occurences, keywords_count = count_word(df_keywords_synonyms,
+                                                    'keywords',keywords)
+new_keyword_occurences[:5]
 # %%
 # deletion of keywords with low frequencies
 def replacement_df_low_frequency_keywords(df, keyword_occurences):
@@ -475,5 +481,70 @@ def fill_year(df):
 
 # %%
 fill_year(df_filling)
+
+# %%
+# Extracting keywords from the title
+icount = 0
+for index, row in df_filling[df_filling['keywords'].isnull()].iterrows():
+    icount += 1
+    liste_mot = row['movie_title'].strip().split()
+    new_keyword = []
+    for s in liste_mot:
+        lemma = get_synonymes(s)
+        for t in list(lemma):
+            if t in keywords: 
+                new_keyword.append(t)                
+    if new_keyword and icount < 15: 
+        print('{:<50} -> {:<30}'.format(row['movie_title'], str(new_keyword)))
+    if new_keyword:
+        df_filling.set_value(index, 'keywords', '|'.join(new_keyword))
+
+# %%
+cols = corrmat.nlargest(9, 'num_voted_users')['num_voted_users'].index
+cm = np.corrcoef(df_keywords_occurence[cols].dropna(how='any').values.T)
+sns.set(font_scale=1.25)
+hm = sns.heatmap(cm, cbar=True, annot=True, square=True,
+                 fmt='.2f', annot_kws={'size': 10}, 
+                 yticklabels=cols.values, xticklabels=cols.values)
+plt.show()
+
+
+# %%
+sns.set(font_scale=1.25)
+cols = ['gross', 'num_voted_users']
+sns.pairplot(df_filling.dropna(how='any')[cols],diag_kind='kde', size = 2.5)
+plt.savefig('graph.jpg')
+plt.show()
+
+# %%
+def variable_linreg_imputation(df, col_to_predict, ref_col):
+    regr = linear_model.LinearRegression()
+    test = df[[col_to_predict,ref_col]].dropna(how='any', axis = 0)
+    X = np.array(test[ref_col])
+    Y = np.array(test[col_to_predict])
+    X = X.reshape(len(X),1)
+    Y = Y.reshape(len(Y),1)
+    regr.fit(X, Y)
+    
+    test = df[df[col_to_predict].isnull() & df[ref_col].notnull()]
+    for index, row in test.iterrows():
+        value = float(regr.predict(row[ref_col]))
+        df.set_value(index, col_to_predict, value)
+
+# %%
+variable_linreg_imputation(df_filling, 'gross', 'num_voted_users')
+
+# %%
+df = df_filling.copy(deep = True)
+missing_df = df.isnull().sum(axis=0).reset_index()
+missing_df.columns = ['column_name', 'missing_count']
+missing_df['filling_factor'] = (df.shape[0] 
+                                - missing_df['missing_count']) / df.shape[0] * 100
+missing_df = missing_df.sort_values('filling_factor').reset_index(drop = True)
+missing_df
+
+# %%
+df = df_filling.copy(deep=True)
+df.reset_index(inplace = True, drop = True)
 
 # %%
